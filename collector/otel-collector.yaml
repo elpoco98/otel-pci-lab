@@ -1,0 +1,63 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+
+  redaction/pci:
+    allow_all_keys: true
+
+    redact_all_types: true
+
+    blocked_key_patterns:
+      - "(?i).*pan.*"
+      - "(?i).*card.?number.*"
+      - "(?i).*credit.?card.*"
+      - "(?i).*cvv.*"
+      - "(?i).*cvc.*"
+
+    blocked_values:
+      - "4[0-9]{12}(?:[0-9]{3})?"
+      - "(5[1-5][0-9]{14})"
+
+    summary: debug
+
+  batch: {}
+
+exporters:
+  debug:
+    verbosity: detailed
+
+  otlp/lgtm:
+    endpoint: lgtm:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors:
+        - memory_limiter
+        - redaction/pci
+        - batch
+      exporters:
+        - debug
+        - otlp/lgtm
+
+    logs:
+      receivers: [otlp]
+      processors:
+        - memory_limiter
+        - redaction/pci
+        - batch
+      exporters:
+        - debug
+        - otlp/lgtm

@@ -1,0 +1,35 @@
+services:
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: otel-pci-lgtm
+    environment:
+      ENABLE_LOGS_GRAFANA: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - lgtm-data:/data
+
+  otel-gateway:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-pci-gateway
+    command:
+      - "--config=/etc/otelcol-contrib/config.yaml"
+    volumes:
+      - ./collector/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - lgtm
+
+  payment-app:
+    build:
+      context: ./app
+    container_name: otel-pci-payment-app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - otel-gateway
+
+volumes:
+  lgtm-data:

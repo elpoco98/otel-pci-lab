@@ -22,6 +22,19 @@ services:
     depends_on:
       - lgtm
 
+  otel-raw:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-pci-raw
+    command:
+      - "--config=/etc/otelcol-contrib/config.yaml"
+    volumes:
+      - ./collector/otel-collector-raw.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "14317:4317"
+      - "14318:4318"
+    depends_on:
+      - lgtm
+
   payment-app:
     build:
       context: ./app
@@ -30,6 +43,7 @@ services:
       - "8000:8000"
     depends_on:
       - otel-gateway
+      - otel-raw
 
 volumes:
   lgtm-data:

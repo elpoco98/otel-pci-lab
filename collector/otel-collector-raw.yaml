@@ -1,0 +1,55 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  resource/mark_raw:
+    attributes:
+      - key: pipeline.variant
+        value: raw
+        action: upsert
+
+      - key: service.name
+        value: pci-demo-payment-app-raw
+        action: upsert
+
+  batch: {}
+
+exporters:
+  debug:
+    verbosity: detailed
+
+  otlp/lgtm:
+    endpoint: lgtm:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers:
+        - otlp
+
+      processors:
+        - resource/mark_raw
+        - batch
+
+      exporters:
+        - debug
+        - otlp/lgtm
+
+    logs:
+      receivers:
+        - otlp
+
+      processors:
+        - resource/mark_raw
+        - batch
+
+      exporters:
+        - debug
+        - otlp/lgtm

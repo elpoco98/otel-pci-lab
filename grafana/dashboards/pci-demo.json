@@ -1,0 +1,807 @@
+{
+  "uid": "pci-demo",
+  "title": "PCI Sanitizer · Vorher & Nachher",
+  "tags": [
+    "PCI",
+    "Demo",
+    "OpenTelemetry"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "style": "dark",
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "links": [
+    {
+      "title": "① Zahlung starten",
+      "url": "http://localhost:8000/demo/payment",
+      "type": "link",
+      "icon": "play",
+      "targetBlank": false
+    },
+    {
+      "title": "② Leak testen",
+      "url": "http://localhost:8000/demo/payment-leak",
+      "type": "link",
+      "icon": "bolt",
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "run_id",
+        "label": "Durchlauf (Run-ID oder .*)",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "text": ".*",
+          "value": ".*"
+        },
+        "options": [],
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "PCI TELEMETRY LAB",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## Gleiche Zahlung. Zwei Wege. Sichtbarer Unterschied.\nSynthetische Zahlungsdaten → **RAW: unverändert** · **PCI-Sanitizer: Allowlist → Inhaltsprüfung → Verwerfen**\n\nOben **① Zahlung starten** oder **② Leak testen** wählen. Nach wenigen Sekunden erscheinen die Ergebnisse dieses Durchlaufs."
+      }
+    },
+    {
+      "id": 2,
+      "type": "text",
+      "title": "🔴 OHNE SANITIZER",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Alles wird weitergegeben\nDer Raw-Collector transportiert auch die synthetische Kartennummer. Öffne unten den Raw-Trace und prüfe `process-payment` bzw. `process-payment-leak`."
+      }
+    },
+    {
+      "id": 3,
+      "type": "text",
+      "title": "🟢 MIT PCI-SANITIZER",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### Betriebsdaten bleiben. Erkannte Kartendaten nicht.\n**Zahlung:** PAN-Attribut entfernt, sichere Felder erhalten.\n\n**Leak:** Der Payment-Span wird verworfen. Der sichere Demo-Rahmen bleibt zum Öffnen des Traces erhalten."
+      }
+    },
+    {
+      "id": 4,
+      "title": "Sanitizer erreichbar · 1 = online",
+      "description": "Prometheus prüft den Collector alle fünf Sekunden.",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"pci-sanitizer-collector\"}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "noValue": "Noch keine Daten",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "valueSize": 46,
+          "titleSize": 14
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Spans empfangen · seit Collector-Start",
+      "description": "Alle vom Sanitizer empfangenen Spans, inklusive sicherer Demo-Rahmen. Nicht auf die Run-ID eingeschränkt.",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 8,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(otelcol_receiver_accepted_spans{job=\"pci-sanitizer-collector\"})",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "noValue": "Noch keine Daten",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "valueSize": 46,
+          "titleSize": 14
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Spans verworfen · seit Collector-Start",
+      "description": "Echter Filter-Zähler des Sanitizers. Aggregiert über alle Durchläufe; kein Beweis für einen einzelnen Run. Fehlende Daten werden nicht als null dargestellt.",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 8,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(otelcol_processor_filter_spans_filtered{job=\"pci-sanitizer-collector\"})",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "noValue": "Noch keine Daten",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {
+          "valueSize": 46,
+          "titleSize": 14
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "RAW · Payment-Attribute",
+      "description": "Live-Daten aus Tempo. Eine leere Tabelle allein beweist keine Verwerfung. Nach dem Auslösen einige Sekunden warten.",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"pci-demo-payment-app-raw\" && span:name =~ \"process-payment.*\" && span.demo.run_id =~ \"${run_id:raw}\" } | select(span.demo.run_id, span.demo.scenario, span.payment.status, span.payment.attempt_id, span.payment.card.pan)",
+          "tableType": "spans",
+          "limit": 50,
+          "spss": 10
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "sortBy": [
+          {
+            "displayName": "Start time",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "noValue": "—"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*payment.card.pan.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 145
+              }
+            ],
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(time|Start time)$"
+            }
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 165
+              }
+            ],
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(spanID|Span ID)$"
+            }
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 235
+              }
+            ],
+            "matcher": {
+              "id": "byName",
+              "options": "payment.attempt_id"
+            }
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "traceName": true,
+              "service.name": true,
+              "traceService": true,
+              "Name": true,
+              "Trace Service": true,
+              "Trace Name": true,
+              "Duration": true,
+              "demo.run_id": true
+            },
+            "indexByName": {
+              "Span ID": 5,
+              "demo.scenario": 3,
+              "time": 4,
+              "payment.card.pan": 2,
+              "payment.attempt_id": 1,
+              "Start time": 4,
+              "traceIdHidden": 6,
+              "payment.status": 0,
+              "spanID": 5
+            },
+            "renameByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "PCI · Payment-Attribute",
+      "description": "Live-Daten aus Tempo. Eine leere Tabelle allein beweist keine Verwerfung. Nach dem Auslösen einige Sekunden warten.",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"pci-demo-payment-app\" && span:name =~ \"process-payment.*\" && span.demo.run_id =~ \"${run_id:raw}\" } | select(span.demo.run_id, span.demo.scenario, span.payment.status, span.payment.attempt_id, span.payment.card.pan)",
+          "tableType": "spans",
+          "limit": 50,
+          "spss": 10
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "sortBy": [
+          {
+            "displayName": "Start time",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "noValue": "—"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*payment.card.pan.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 145
+              }
+            ],
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(time|Start time)$"
+            }
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 165
+              }
+            ],
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(spanID|Span ID)$"
+            }
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 235
+              }
+            ],
+            "matcher": {
+              "id": "byName",
+              "options": "payment.attempt_id"
+            }
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "traceName": true,
+              "service.name": true,
+              "traceService": true,
+              "Name": true,
+              "Trace Service": true,
+              "Trace Name": true,
+              "Duration": true,
+              "demo.run_id": true
+            },
+            "indexByName": {
+              "Span ID": 5,
+              "demo.scenario": 3,
+              "time": 4,
+              "payment.card.pan": 2,
+              "payment.attempt_id": 1,
+              "Start time": 4,
+              "traceIdHidden": 6,
+              "payment.status": 0,
+              "spanID": 5
+            },
+            "renameByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "RAW · Trace öffnen",
+      "description": "Trace-ID anklicken. Raw und PCI haben getrennte Trace-IDs.",
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 5
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"pci-demo-payment-app-raw\" && span:name = \"payment-demo\" && span.demo.run_id =~ \"${run_id:raw}\" } | select(span.demo.run_id, span.demo.scenario, span.payment.status, span.payment.attempt_id, span.payment.card.pan)",
+          "tableType": "spans",
+          "limit": 50,
+          "spss": 10
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "sortBy": [
+          {
+            "displayName": "Start time",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "noValue": "—"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*payment.card.pan.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 145
+              }
+            ],
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(time|Start time)$"
+            }
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 165
+              }
+            ],
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(spanID|Span ID)$"
+            }
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 235
+              }
+            ],
+            "matcher": {
+              "id": "byName",
+              "options": "payment.attempt_id"
+            }
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "traceName": true,
+              "service.name": true,
+              "payment.card.pan": true,
+              "traceService": true,
+              "Name": true,
+              "Trace Service": true,
+              "Trace Name": true,
+              "Duration": true,
+              "payment.status": true,
+              "demo.run_id": true,
+              "payment.attempt_id": true
+            },
+            "indexByName": {
+              "Start time": 1,
+              "traceIdHidden": 3,
+              "Span ID": 2,
+              "demo.scenario": 0,
+              "spanID": 2,
+              "time": 1
+            },
+            "renameByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "PCI · Trace öffnen",
+      "description": "Trace-ID anklicken. Raw und PCI haben getrennte Trace-IDs.",
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 5
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "traceql",
+          "query": "{ resource.service.name = \"pci-demo-payment-app\" && span:name = \"payment-demo\" && span.demo.run_id =~ \"${run_id:raw}\" } | select(span.demo.run_id, span.demo.scenario, span.payment.status, span.payment.attempt_id, span.payment.card.pan)",
+          "tableType": "spans",
+          "limit": 50,
+          "spss": 10
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "sortBy": [
+          {
+            "displayName": "Start time",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true
+          },
+          "noValue": "—"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*payment.card.pan.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 145
+              }
+            ],
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(time|Start time)$"
+            }
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 165
+              }
+            ],
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(spanID|Span ID)$"
+            }
+          },
+          {
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 235
+              }
+            ],
+            "matcher": {
+              "id": "byName",
+              "options": "payment.attempt_id"
+            }
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "traceName": true,
+              "service.name": true,
+              "payment.card.pan": true,
+              "traceService": true,
+              "Name": true,
+              "Trace Service": true,
+              "Trace Name": true,
+              "Duration": true,
+              "payment.status": true,
+              "demo.run_id": true,
+              "payment.attempt_id": true
+            },
+            "indexByName": {
+              "Start time": 1,
+              "traceIdHidden": 3,
+              "Span ID": 2,
+              "demo.scenario": 0,
+              "spanID": 2,
+              "time": 1
+            },
+            "renameByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "text",
+      "title": "So liest du die Demo",
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Zahlung:** In beiden Spalten ein Payment-Span; die PAN existiert nur links. **Leak:** Nur links ein Payment-Span; rechts bleibt der sichere Demo-Rahmen. Der orange Zähler zeigt tatsächliche Filter-Verwerfungen seit Collector-Start.\n\n**Run-ID:** `${run_id}` · Für alle Demo-Durchläufe `.*` eingeben. Nur synthetische Daten. Diese Demo ist kein PCI-DSS-Konformitätsnachweis."
+      }
+    }
+  ]
+}

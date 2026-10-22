@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: PCI Sanitizer Demo
+    folder: PCI Lab
+    type: file
+    disableDeletion: false
+    # Polling (>10s) also detects edits through Docker Desktop bind mounts.
+    updateIntervalSeconds: 30
+    options:
+      path: /demo-dashboards

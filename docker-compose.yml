@@ -4,18 +4,22 @@ services:
     container_name: otel-pci-lgtm
     environment:
       ENABLE_LOGS_GRAFANA: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /demo-dashboards/pci-demo.json
     ports:
       - "3000:3000"
     volumes:
       - lgtm-data:/data
+      - ./grafana/provisioning/demo.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/pci-demo.yaml:ro
+      - ./grafana/dashboards:/demo-dashboards:ro
+      - ./grafana/prometheus.yaml:/otel-lgtm/prometheus.yaml:ro
 
-  otel-gateway:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: otel-pci-gateway
+  pci-sanitizer-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    container_name: pci-sanitizer-collector
     command:
       - "--config=/etc/otelcol-contrib/config.yaml"
     volumes:
-      - ./collector/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - ./collector/pci-sanitizer-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
       - "4317:4317"
       - "4318:4318"
@@ -23,7 +27,7 @@ services:
       - lgtm
 
   otel-raw:
-    image: otel/opentelemetry-collector-contrib:latest
+    image: otel/opentelemetry-collector-contrib:0.162.0
     container_name: otel-pci-raw
     command:
       - "--config=/etc/otelcol-contrib/config.yaml"
@@ -42,7 +46,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - otel-gateway
+      - pci-sanitizer-collector
       - otel-raw
 
 volumes:

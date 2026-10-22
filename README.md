@@ -1,5 +1,55 @@
 # OpenTelemetry PCI Telemetry Sanitization Lab
 
+## Visual demo: Raw vs. PCI Sanitizer
+
+Start with `docker compose up -d --build`, then open
+**http://localhost:3000/d/pci-demo**. The dashboard is provisioned automatically.
+
+1. Click **Zahlung starten**: Raw shows the synthetic PAN; PCI keeps the safe
+   payment fields and removes `payment.card.pan`.
+2. Click **Leak testen**: Raw shows the unsafe payment span; PCI drops it.
+   This scenario deliberately uses `attempt_4111111111111111` to exercise the
+   formerly missed underscore boundary.
+3. Allow approximately 5–15 seconds for export, scraping and dashboard refresh.
+   The links return to the dashboard filtered to the new `demo.run_id`.
+4. Open the trace links below each column to inspect the actual stored spans.
+   Set the Run-ID field to `.*` to show all demo runs in the selected time range.
+
+Each demo action emits two independent traces with the same synthetic payment
+attributes and `demo.run_id`, but different trace/span IDs. Each provider exports
+only to its designated collector. This deliberate lab design prevents the two
+copies from being merged in a single trace view. Both traces have a safe
+`payment-demo` parent so that even the sanitized leak trace can be opened; only
+the unsafe `process-payment-leak` child is dropped.
+
+The orange dashboard counter comes from the Collector's actual filter metrics.
+It counts **all filtered spans since Collector start**, not only the selected
+run. Missing telemetry is not labeled as a successful drop. The green received
+counter includes the safe parent spans. Collector metrics are scraped every
+five seconds over the internal Docker network.
+
+The sanitized service/container is named **`pci-sanitizer-collector`**, configured
+by `collector/pci-sanitizer-collector.yaml`. Its application telemetry retains
+`service.name = pci-demo-payment-app`; the raw service remains
+`pci-demo-payment-app-raw`.
+
+When upgrading a previously running checkout, remove the old gateway container
+before starting the renamed service (it owns ports 4317/4318):
+
+```bash
+docker stop otel-pci-gateway
+docker rm otel-pci-gateway
+docker compose up -d --build
+```
+
+The existing `lgtm-data` volume is retained. Old traces remain visible in broader
+time ranges; use the current run filter for the new demo.
+
+Dashboard/provisioning sources are in `grafana/`. The action links assume a local
+demo on `localhost:8000` and `localhost:3000`. For remote use, adjust the dashboard
+links and set `GRAFANA_PUBLIC_URL` on the app. Exporter addresses can be overridden
+with `PCI_OTLP_ENDPOINT` and `RAW_OTLP_ENDPOINT`.
+
 ## Overview
 
 This repository provides a local proof-of-concept environment for testing how
@@ -47,7 +97,7 @@ The lab runs four main components:
                            │  Python / FastAPI / OTel    │
                            └──────────────┬──────────────┘
                                           │
-                              same telemetry sent twice
+                              paired traces with distinct IDs
                                           │
                       ┌───────────────────┴───────────────────┐
                       │                                       │
@@ -109,9 +159,16 @@ otel-pci-lab/
 │   ├── Dockerfile
 │   └── requirements.txt
 │
-└── collector/
-    ├── otel-collector.yaml
-    └── otel-collector-raw.yaml
+├── collector/
+│   ├── pci-sanitizer-collector.yaml
+│   └── otel-collector-raw.yaml
+│
+└── grafana/
+    ├── dashboards/
+    │   └── pci-demo.json
+    ├── provisioning/
+    │   └── demo.yaml
+    └── prometheus.yaml
 ```
 
 ## Components
@@ -123,7 +180,7 @@ Contains the demo payment application.
 The application is intentionally instrumented to generate telemetry that may
 contain synthetic sensitive payment-card data.
 
-### `collector/otel-collector.yaml`
+### `collector/pci-sanitizer-collector.yaml`
 
 Contains the PCI-oriented sanitization pipeline.
 
@@ -297,7 +354,7 @@ An approved field can still contain unsafe content.
 Example:
 
 ```text
-payment.attempt_id = "attempt-4111111111111111"
+payment.attempt_id = "attempt_4111111111111111"
 ```
 
 The key itself is approved, but its value contains a PAN.
@@ -623,7 +680,7 @@ GET /payment-leak
 This endpoint intentionally places a synthetic PAN inside an approved field:
 
 ```text
-payment.attempt_id = attempt-4111111111111111
+payment.attempt_id = attempt_4111111111111111
 ```
 
 This simulates a realistic failure mode where:
@@ -765,7 +822,7 @@ Expected containers:
 
 ```text
 otel-pci-payment-app
-otel-pci-gateway
+pci-sanitizer-collector
 otel-pci-raw
 otel-pci-lgtm
 ```
@@ -860,7 +917,7 @@ process-payment-leak
 exists and contains:
 
 ```text
-payment.attempt_id = attempt-4111111111111111
+payment.attempt_id = attempt_4111111111111111
 ```
 
 ### Sanitized

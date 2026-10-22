@@ -32,6 +32,8 @@ processors:
             "http.route",
             "http.response.status_code",
             "duration_ms",
+            "demo.run_id",
+            "demo.scenario",
             "payment.status",
             "payment.attempt_id"
             ])'
@@ -48,6 +50,8 @@ processors:
         statements:
           - 'keep_keys(attributes, [
             "event.name",
+            "demo.run_id",
+            "demo.scenario",
             "payment.status",
             "payment.attempt_id"
             ])'
@@ -61,8 +65,9 @@ processors:
     redact_all_types: true
 
     blocked_values:
-      - '\b[0-9]{13,19}\b'
-      - '\b(?:[0-9][ -]?){13,19}\b'
+      # Numeric boundaries also detect PANs beside letters and underscores.
+      - '(^|[^0-9])[0-9]{13,19}([^0-9]|$)'
+      - '(^|[^0-9])(?:[0-9][ -]?){12,18}[0-9]([^0-9]|$)'
       - '%B[0-9]{13,19}\^[^^]+\^[^?]+\?'
       - ';[0-9]{13,19}=[^?]+\?'
       - '(?i)bearer\s+[A-Za-z0-9._~+/=-]+'
@@ -78,7 +83,7 @@ processors:
   # ============================================================
 
   filter/drop_sensitive:
-    error_mode: ignore
+    error_mode: propagate
 
     traces:
       span:
@@ -100,6 +105,14 @@ exporters:
       insecure: true
 
 service:
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
   pipelines:
     traces:
       receivers:
